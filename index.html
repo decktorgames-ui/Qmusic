@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Моя музыка</title>
+<style>
+:root{--bg:#0e0f12;--panel:#17181d;--panel2:#1f2127;--text:#f2f3f5;--mute:#9aa0aa;--acc:#1ed67a;--line:#2a2d35}
+@media(prefers-color-scheme:light){:root{--bg:#f4f5f7;--panel:#fff;--panel2:#eceef1;--text:#16181c;--mute:#6a707b;--acc:#12a85e;--line:#dde0e5}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:grid;grid-template-columns:240px 1fr 340px;grid-template-rows:1fr;gap:10px;padding:10px}
+aside,main,.player{background:var(--panel);border-radius:14px;padding:16px;overflow:auto}
+h1{font-size:19px;margin:0 0 14px}
+h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:18px 0 8px}
+button,select,input{font:inherit;color:var(--text)}
+button{background:var(--panel2);border:0;border-radius:999px;padding:8px 14px;cursor:pointer}
+button:hover{filter:brightness(1.15)}
+.acc{background:var(--acc);color:#04130b;font-weight:600}
+input[type=text]{background:var(--panel2);border:1px solid transparent;border-radius:999px;padding:10px 16px;width:100%;outline:0}
+input[type=text]:focus{border-color:var(--acc)}
+select{background:var(--panel2);border:0;border-radius:999px;padding:7px 10px;cursor:pointer;max-width:150px}
+.pl{display:flex;align-items:center;gap:6px;padding:9px 12px;border-radius:10px;cursor:pointer;color:var(--mute)}
+.pl:hover{background:var(--panel2)}
+.pl.on{background:var(--panel2);color:var(--text);font-weight:600}
+.pl span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl i{font-style:normal;opacity:.6;font-size:12px}
+.row2{display:flex;gap:8px;margin:12px 0}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 14px}
+.bar .grow{flex:1}
+#msg{color:var(--mute);font-size:13px;min-height:18px}
+.t{display:flex;align-items:center;gap:12px;padding:8px;border-radius:10px;border:1px solid transparent}
+.t:hover{background:var(--panel2)}
+.t.on{background:var(--panel2);border-color:var(--acc)}
+.t.over{border-color:var(--acc);border-style:dashed}
+.t img{width:48px;height:48px;border-radius:8px;object-fit:cover;background:var(--line);cursor:pointer;flex:none}
+.t .n{flex:1;min-width:0;cursor:pointer}
+.t .n b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t .n small{color:var(--mute)}
+.t .h{cursor:grab;color:var(--mute);padding:0 4px}
+.x{padding:6px 10px}
+.empty{color:var(--mute);text-align:center;padding:50px 10px}
+.player{display:flex;flex-direction:column;gap:14px}
+#cover{width:100%;aspect-ratio:1;border-radius:12px;object-fit:cover;background:var(--panel2)}
+#stage{width:100%;border-radius:12px;overflow:hidden;background:#000}
+#stage iframe,#stage #yt{width:100%;display:block;border:0}
+#stage audio{width:100%;display:block;background:var(--panel2)}
+#title{font-weight:700;font-size:17px}
+.ctl{display:flex;gap:10px;justify-content:center}
+.foot{font-size:12px;color:var(--mute)}
+@media(max-width:980px){body{grid-template-columns:1fr;grid-template-rows:auto;height:auto;gap:10px}.player{order:-1}}
+</style>
+</head>
+<body>
+
+<aside>
+  <h1>🎧 Моя музыка</h1>
+  <h2>Плейлисты</h2>
+  <div id="pls"></div>
+  <div class="row2"><button id="newpl" class="acc">+ Новый плейлист</button></div>
+  <h2>Данные</h2>
+  <div class="row2"><button id="exp">Экспорт</button><button id="imp">Импорт</button></div>
+  <input type="file" id="file" accept=".json" hidden>
+  <p class="foot">Всё хранится только в вашем браузере. Сайт не хранит музыку, только ссылки.</p>
+</aside>
+
+<main>
+  <input type="text" id="url" placeholder="Вставьте ссылку: YouTube, SoundCloud, Spotify или mp3 — и нажмите Enter">
+  <div class="bar">
+    <button id="add" class="acc">Добавить</button>
+    <span id="msg"></span>
+    <span class="grow"></span>
+    <select id="sort">
+      <option value="">Сортировка…</option>
+      <option value="az">По названию А–Я</option>
+      <option value="za">По названию Я–А</option>
+      <option value="new">Сначала новые</option>
+      <option value="old">Сначала старые</option>
+      <option value="shuf">Перемешать</option>
+    </select>
+  </div>
+  <h2 id="lt"></h2>
+  <div id="list"></div>
+</main>
+
+<section class="player">
+  <img id="cover" alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Crect width='10' height='10' fill='%231f2127'/%3E%3Ctext x='5' y='6.4' font-size='4' text-anchor='middle'%3E♪%3C/text%3E%3C/svg%3E">
+  <div id="stage"></div>
+  <div id="title">Выберите песню</div>
+  <div class="ctl"><button id="prev">⏮</button><button id="next" class="acc">⏭</button></div>
+  <p class="foot">Перетаскивайте ⠿, чтобы менять порядок. Для YouTube и mp3 следующий трек включается сам.</p>
+</section>
+
+<script>
+const $=s=>document.querySelector(s);
+let S={tracks:[],pls:[]},cur='all',playing=null,ytp=null,ytReady=null;
+try{S=JSON.parse(localStorage.getItem('mymusic'))||S}catch(e){}
+const save=()=>{try{localStorage.setItem('mymusic',JSON.stringify(S))}catch(e){}};
+const uid=()=>Math.random().toString(36).slice(2,10);
+const msg=t=>$('#msg').textContent=t||'';
+
+function parse(u){
+  let m;
+  if(m=u.match(/(?:youtu\.be\/|[?&]v=|shorts\/|embed\/)([\w-]{11})/))return{type:'yt',vid:m[1],thumb:`https://img.youtube.com/vi/${m[1]}/hqdefault.jpg`};
+  if(/soundcloud\.com\//.test(u))return{type:'sc'};
+  if(m=u.match(/open\.spotify\.com\/(?:intl-[a-z]+\/)?(track|album|playlist|episode)\/(\w+)/))return{type:'sp',embed:`https://open.spotify.com/embed/${m[1]}/${m[2]}`};
+  if(/\.(mp3|ogg|wav|m4a|aac)(\?|#|$)/i.test(u))return{type:'au'};
+  return null;
+}
+async function meta(u,p){
+  p.title=p.title||'Без названия';
+  if(p.type==='au'){try{p.title=decodeURIComponent(u.split('/').pop().split('?')[0]).replace(/\.\w+$/,'')}catch(e){}return p}
+  try{
+    const r=await fetch('https://noembed.com/embed?url='+encodeURIComponent(u));
+    const j=await r.json();
+    if(j.title)p.title=j.title;
+    if(j.author_name)p.artist=j.author_name;
+    if(!p.thumb&&j.thumbnail_url)p.thumb=j.thumbnail_url;
+  }catch(e){}
+  return p;
+}
+async function addTrack(){
+  const u=$('#url').value.trim();if(!u)return;
+  const p=parse(u);
+  if(!p){msg('Не удалось распознать ссылку. Поддерживаются YouTube, SoundCloud, Spotify и прямые mp3.');return}
+  msg('Загружаю обложку…');
+  await meta(u,p);
+  const t={id:uid(),url:u,added:Date.now(),...p};
+  S.tracks.push(t);
+  if(cur!=='all'){const pl=S.pls.find(x=>x.id===cur);if(pl)pl.ids.push(t.id)}
+  save();$('#url').value='';msg('Добавлено ✓');render();
+}
+const ids=()=>cur==='all'?S.tracks.map(t=>t.id):(S.pls.find(p=>p.id===cur)?.ids||[]);
+const byId=id=>S.tracks.find(t=>t.id===id);
+const view=()=>ids().map(byId).filter(Boolean);
+
+function render(){
+  // плейлисты
+  const box=$('#pls');box.innerHTML='';
+  const mk=(id,name,n,del)=>{
+    const d=document.createElement('div');d.className='pl'+(cur===id?' on':'');
+    d.innerHTML=`<span></span><i>${n}</i>`;d.firstChild.textContent=(id==='all'?'♫ ':'')+name;
+    d.onclick=()=>{cur=id;render()};
+    if(del){
+      const r=document.createElement('button');r.className='x';r.textContent='✎';r.title='Переименовать';
+      r.onclick=e=>{e.stopPropagation();const n=prompt('Новое имя',name);if(n){S.pls.find(p=>p.id===id).name=n;save();render()}};
+      const x=document.createElement('button');x.className='x';x.textContent='✕';x.title='Удалить плейлист';
+      x.onclick=e=>{e.stopPropagation();if(confirm('Удалить плейлист «'+name+'»? Песни останутся в библиотеке.')){S.pls=S.pls.filter(p=>p.id!==id);if(cur===id)cur='all';save();render()}};
+      d.append(r,x);
+    }
+    box.append(d);
+  };
+  mk('all','Все песни',S.tracks.length);
+  S.pls.forEach(p=>mk(p.id,p.name,p.ids.length,true));
+  $('#lt').textContent=cur==='all'?'Все песни':S.pls.find(p=>p.id===cur)?.name||'';
+  // список
+  const L=$('#list');L.innerHTML='';
+  const v=view();
+  if(!v.length){L.innerHTML='<div class="empty">Здесь пока пусто.<br>Вставьте ссылку на песню выше.</div>';return}
+  v.forEach(t=>{
+    const d=document.createElement('div');d.className='t'+(playing===t.id?' on':'');d.draggable=true;d.dataset.id=t.id;
+    d.innerHTML=`<span class="h">⠿</span><img alt=""><div class="n"><b></b><small></small></div>`;
+    const img=d.querySelector('img');img.src=t.thumb||'';img.onerror=()=>img.style.visibility='hidden';
+    d.querySelector('b').textContent=t.title;
+    d.querySelector('small').textContent=t.artist||({yt:'YouTube',sc:'SoundCloud',sp:'Spotify',au:'Аудиофайл'})[t.type];
+    d.querySelector('.n').onclick=img.onclick=()=>play(t.id);
+    if(cur==='all'&&S.pls.length){
+      const s=document.createElement('select');
+      s.innerHTML='<option value="">+ В плейлист</option>'+S.pls.map(p=>`<option value="${p.id}">${p.name.replace(/</g,'&lt;')}</option>`).join('');
+      s.onchange=()=>{const p=S.pls.find(x=>x.id===s.value);if(p&&!p.ids.includes(t.id)){p.ids.push(t.id);save();render()}};
+      d.append(s);
+    }
+    const x=document.createElement('button');x.className='x';x.textContent='✕';
+    x.title=cur==='all'?'Удалить совсем':'Убрать из плейлиста';
+    x.onclick=()=>{
+      if(cur==='all'){S.tracks=S.tracks.filter(a=>a.id!==t.id);S.pls.forEach(p=>p.ids=p.ids.filter(i=>i!==t.id))}
+      else{const p=S.pls.find(p=>p.id===cur);p.ids=p.ids.filter(i=>i!==t.id)}
+      save();render();
+    };
+    d.append(x);
+    d.ondragstart=e=>{e.dataTransfer.setData('text/plain',t.id)};
+    d.ondragover=e=>{e.preventDefault();d.classList.add('over')};
+    d.ondragleave=()=>d.classList.remove('over');
+    d.ondrop=e=>{
+      e.preventDefault();d.classList.remove('over');
+      const from=e.dataTransfer.getData('text/plain');if(!from||from===t.id)return;
+      const arr=cur==='all'?S.tracks.map(a=>a.id):S.pls.find(p=>p.id===cur).ids;
+      arr.splice(arr.indexOf(from),1);arr.splice(arr.indexOf(t.id),0,from);
+      if(cur==='all')S.tracks=arr.map(byId);else S.pls.find(p=>p.id===cur).ids=arr;
+      save();render();
+    };
+    L.append(d);
+  });
+}
+
+function sortNow(k){
+  if(!k)return;
+  const cmp={az:(a,b)=>a.title.localeCompare(b.title,'ru'),za:(a,b)=>b.title.localeCompare(a.title,'ru'),new:(a,b)=>b.added-a.added,old:(a,b)=>a.added-b.added,shuf:()=>Math.random()-.5}[k];
+  const sorted=view().sort(cmp).map(t=>t.id);
+  if(cur==='all')S.tracks=sorted.map(byId);else S.pls.find(p=>p.id===cur).ids=sorted;
+  save();render();
+}
+
+function loadYT(){
+  if(window.YT&&YT.Player)return Promise.resolve();
+  if(ytReady)return ytReady;
+  return ytReady=new Promise(res=>{
+    window.onYouTubeIframeAPIReady=res;
+    const s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';document.head.append(s);
+  });
+}
+async function play(id){
+  const t=byId(id);if(!t)return;
+  playing=id;
+  $('#title').textContent=t.title;
+  if(t.thumb)$('#cover').src=t.thumb;
+  const st=$('#stage');
+  if(ytp){try{ytp.destroy()}catch(e){}ytp=null}
+  st.innerHTML='';
+  if(t.type==='yt'){
+    await loadYT();
+    st.innerHTML='<div id="yt"></div>';
+    ytp=new YT.Player('yt',{videoId:t.vid,width:'100%',height:190,playerVars:{autoplay:1,playsinline:1},
+      events:{onStateChange:e=>{if(e.data===0)step(1)}}});
+  }else if(t.type==='au'){
+    const a=document.createElement('audio');a.controls=true;a.autoplay=true;a.src=t.url;a.onended=()=>step(1);st.append(a);
+  }else if(t.type==='sc'){
+    st.innerHTML=`<iframe height="166" allow="autoplay" src="https://w.soundcloud.com/player/?url=${encodeURIComponent(t.url)}&auto_play=true&color=%231ed67a"></iframe>`;
+  }else if(t.type==='sp'){
+    st.innerHTML=`<iframe height="152" allow="autoplay; encrypted-media" src="${t.embed}"></iframe>`;
+  }
+  render();
+}
+function step(d){
+  const v=view();if(!v.length)return;
+  let i=v.findIndex(t=>t.id===playing);
+  i=i<0?0:(i+d+v.length)%v.length;
+  play(v[i].id);
+}
+
+$('#add').onclick=addTrack;
+$('#url').onkeydown=e=>{if(e.key==='Enter')addTrack()};
+$('#sort').onchange=e=>{sortNow(e.target.value);e.target.value=''};
+$('#prev').onclick=()=>step(-1);
+$('#next').onclick=()=>step(1);
+$('#newpl').onclick=()=>{const n=prompt('Название плейлиста');if(n){const p={id:uid(),name:n,ids:[]};S.pls.push(p);cur=p.id;save();render()}};
+$('#exp').onclick=()=>{
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));
+  a.download='my-music.json';a.click();
+};
+$('#imp').onclick=()=>$('#file').click();
+$('#file').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{try{const j=JSON.parse(r.result);if(Array.isArray(j.tracks)&&Array.isArray(j.pls)){S=j;cur='all';save();render();msg('Импортировано ✓')}else msg('Неверный файл')}catch(err){msg('Неверный файл')}};
+  r.readAsText(f);e.target.value='';
+};
+render();
+</script>
+</body>
+</html>
